@@ -6,14 +6,11 @@ from flask import Flask, jsonify, send_from_directory
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-
 app = Flask(__name__, static_folder='.', static_url_path='')
-
 PRED_DAYS = 5
 BUY_THRESHOLD = 0.6
 SELL_THRESHOLD = 0.5
 HOLD_DAYS = 5
-
 def fetch_nav_data():
     if not os.path.exists("data.csv"):
         return None
@@ -27,7 +24,6 @@ def fetch_nav_data():
     df.dropna(subset=["date", "nav"], inplace=True)
     df = df.sort_values("date").reset_index(drop=True)
     return df
-
 def create_features(df):
     df = df.copy()
     df["r1"] = df["nav"].pct_change()
@@ -40,7 +36,6 @@ def create_features(df):
     df["vol10"] = df["r1"].rolling(10).std()
     df["target"] = (df["nav"].shift(-PRED_DAYS) / df["nav"] - 1 > 0).astype(int)
     return df.dropna()
-
 def train_and_backtest(df):
     feats = ["r1","r5","r10","ma5","ma10","ma20","vol5","vol10"]
     dfm = create_features(df)
@@ -57,7 +52,6 @@ def train_and_backtest(df):
     acc = accuracy_score(te["target"], te["pred"])
     prec = precision_score(te["target"], te["pred"], zero_division=0)
     rec = recall_score(te["target"], te["pred"], zero_division=0)
-
     cap, s_nav, b_nav = 1.0, [1.0], [1.0]
     pos, bd, bn, hc, trades = False, None, None, 0, []
     for i,(d,p,n) in enumerate(zip(te["date"].values, te["prob"], te["nav"])):
@@ -80,7 +74,6 @@ def train_and_backtest(df):
     ret_ann = (1+ret_total)**(365.0/days)-1 if days>0 else 0
     mdd = (s_nav - np.maximum.accumulate(s_nav)).min() / np.maximum.accumulate(s_nav)[0]
     win_rate = sum(1 for t in trades if t["return_pct"]>0) / len(trades) if trades else 0
-
     metrics = {"accuracy":acc,"precision":prec,"recall":rec,"strategy_return":ret_total,
                "annual_return":ret_ann,"max_drawdown":mdd,"win_rate":win_rate,"total_trades":len(trades)}
     eq = {"dates":[d.strftime("%Y-%m-%d") for d in te["date"]],
@@ -88,7 +81,6 @@ def train_and_backtest(df):
     ph = {"dates":[d.strftime("%Y-%m-%d") for d in te["date"].iloc[-90:]],
           "probabilities":te["prob"].iloc[-90:].tolist()}
     return mdl, sc, metrics, trades, eq, ph, te.iloc[-1]
-
 def generate_signal(mdl, sc, latest):
     feats = ["r1","r5","r10","ma5","ma10","ma20","vol5","vol10"]
     if latest is None or latest[feats].isnull().any():
@@ -99,7 +91,6 @@ def generate_signal(mdl, sc, latest):
     else: a,i,t = "hold","🟡","继续观望"
     return {"action_class":a,"icon":i,"title":t,"probability":prob,
             "subtitle":f"未来{PRED_DAYS}日上涨概率: {prob*100:.1f}%"}
-
 @app.route('/api/all')
 def api_all():
     df = fetch_nav_data()
@@ -113,7 +104,6 @@ def api_all():
     return jsonify({"signal":sig,"metrics":met,"equity_curve":eq,"prob_history":ph,"trades":trades,
                     "data_start":df["date"].min().strftime("%Y-%m-%d"),
                     "data_end":df["date"].max().strftime("%Y-%m-%d"),"n_samples":len(df)})
-
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')

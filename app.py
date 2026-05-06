@@ -17,9 +17,7 @@ HOLD_DAYS = 5
 def fetch_nav_data():
     if not os.path.exists("data.csv"):
         return None
-    # 关键修改：用空白分隔符（兼容空格、制表符）
     df = pd.read_csv("data.csv", header=None, encoding="utf-8", sep=r'\s+')
-    # 可能有些行末尾有空白导致读取了空列，只取前三列
     df = df.iloc[:, :3]
     df.columns = ["date", "nav", "acc_nav"]
     for col in ["nav", "acc_nav"]:
@@ -62,32 +60,43 @@ def train_and_backtest(df):
 
     cap, s_nav, b_nav = 1.0, [1.0], [1.0]
     pos, bd, bn, hc, trades = False, None, None, 0, []
-    for i,(d,p,n) in enumerate(zip(te["date"].values, te["prob"], te["nav"])):
+    # 转换为 pandas Timestamp 便于 strftime
+    dates = pd.to_datetime(te["date"].values)
+    probs = te["prob"].values
+    navs = te["nav"].values
+    for i,(d,p,n) in enumerate(zip(dates, probs, navs)):
         if i==0: base=n
         b_nav.append(n/base)
         if not pos:
-            if p>=BUY_THRESHOLD: pos,bd,bn,hc = True,d,n,0
+            if p>=BUY_THRESHOLD:
+                pos, bd, bn, hc = True, d, n, 0
         else:
             hc+=1
             if hc>=HOLD_DAYS or p<SELL_THRESHOLD:
                 ret = (n-bn)/bn
                 cap *= (1+ret)
-                trades.append({"buy_date":bd.strftime("%Y-%m-%d"),"sell_date":d.strftime("%Y-%m-%d"),
-                               "hold_days":hc,"buy_nav":round(bn,4),"sell_nav":round(n,4),"return_pct":round(ret,4)})
+                trades.append({
+                    "buy_date": pd.Timestamp(bd).strftime("%Y-%m-%d"),
+                    "sell_date": pd.Timestamp(d).strftime("%Y-%m-%d"),
+                    "hold_days": hc,
+                    "buy_nav": round(bn, 4),
+                    "sell_nav": round(n, 4),
+                    "return_pct": round(ret, 4)
+                })
                 pos=False
         s_nav.append(cap*(n/bn) if pos and bn else cap)
     s_nav, b_nav = np.array(s_nav), np.array(b_nav)
     ret_total = cap-1
-    days = (te["date"].iloc[-1] - te["date"].iloc[0]).days
+    days = (dates[-1] - dates[0]).days
     ret_ann = (1+ret_total)**(365.0/days)-1 if days>0 else 0
     mdd = (s_nav - np.maximum.accumulate(s_nav)).min() / np.maximum.accumulate(s_nav)[0]
     win_rate = sum(1 for t in trades if t["return_pct"]>0) / len(trades) if trades else 0
 
     metrics = {"accuracy":acc,"precision":prec,"recall":rec,"strategy_return":ret_total,
                "annual_return":ret_ann,"max_drawdown":mdd,"win_rate":win_rate,"total_trades":len(trades)}
-    eq = {"dates":[d.strftime("%Y-%m-%d") for d in te["date"]],
+    eq = {"dates":[pd.Timestamp(d).strftime("%Y-%m-%d") for d in dates],
           "strategy_nav":s_nav.tolist(),"buyhold_nav":b_nav.tolist()}
-    ph = {"dates":[d.strftime("%Y-%m-%d") for d in te["date"].iloc[-90:]],
+    ph = {"dates":[pd.Timestamp(d).strftime("%Y-%m-%d") for d in dates[-90:]],
           "probabilities":te["prob"].iloc[-90:].tolist()}
     return mdl, sc, metrics, trades, eq, ph, te.iloc[-1]
 

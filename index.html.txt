@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>永赢先锋半导体智选混合发起C - 涨跌预测与买卖提醒</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card-bg: #1a1d27;
+            --border: #2a2d38;
+            --text: #e0e0e0;
+            --text-secondary: #9a9ca8;
+            --green: #00d4aa;
+            --red: #ff4757;
+            --blue: #4dabf7;
+            --gold: #f0b90b;
+            --up-bg: rgba(0, 212, 170, 0.12);
+            --down-bg: rgba(255, 71, 87, 0.12);
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        .app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 16px 20px;
+        }
+        /* Header */
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0 10px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .app-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: #fff;
+        }
+        .app-title span {
+            color: var(--blue);
+        }
+        .fund-badge {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .fund-badge code {
+            color: var(--gold);
+            font-weight: 600;
+            background: none;
+            font-size: 0.85rem;
+        }
+        /* Signal Card */
+        .signal-card {
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .signal-card.buy {
+            background: var(--up-bg);
+            border-color: var(--green);
+        }
+        .signal-card.sell {
+            background: var(--down-bg);
+            border-color: var(--red);
+        }
+        .signal-card.hold {
+            background: rgba(77, 171, 247, 0.06);
+            border-color: var(--border);
+        }
+        .signal-icon {
+            font-size: 3rem;
+            flex-shrink: 0;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.12);
+            }
+        }
+        .signal-info h3 {
+            font-weight: 700;
+            margin: 0;
+            font-size: 1.4rem;
+            letter-spacing: -0.2px;
+        }
+        .signal-info .prob {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+        .signal-info .sub {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .signal-card.buy .signal-info h3 {
+            color: var(--green);
+        }
+        .signal-card.buy .prob {
+            color: var(--green);
+        }
+        .signal-card.sell .signal-info h3 {
+            color: var(--red);
+        }
+        .signal-card.sell .prob {
+            color: var(--red);
+        }
+        .signal-card.hold .signal-info h3 {
+            color: var(--blue);
+        }
+        .signal-card.hold .prob {
+            color: var(--blue);
+        }
+        /* Cards */
+        .card-custom {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 22px;
+            margin: 12px 0;
+        }
+        .card-custom h5 {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 14px;
+            color: #fff;
+            letter-spacing: -0.2px;
+        }
+        /* Metrics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+        .metric-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .metric-value.up {
+            color: var(--green);
+        }
+        .metric-value.down {
+            color: var(--red);
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+        /* Table */
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .table-custom th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+        .table-custom td {
+            padding: 9px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.82rem;
+        }
+        .table-custom .trade-win {
+            color: var(--green);
+            font-weight: 600;
+        }
+        .table-custom .trade-loss {
+            color: var(--red);
+            font-weight: 600;
+        }
+        .badge-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .badge-buy {
+            background: rgba(0, 212, 170, 0.2);
+            color: var(--green);
+        }
+        .badge-sell {
+            background: rgba(255, 71, 87, 0.2);
+            color: var(--red);
+        }
+        /* Chart container */
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 340px;
+            margin: 8px 0;
+        }
+        .chart-wrapper canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        /* Buttons */
+        .btn-refresh {
+            background: var(--blue);
+            color: #000;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-refresh:hover {
+            opacity: 0.85;
+            transform: translateY(-1px);
+        }
+        .btn-refresh:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.green {
+            background: var(--green);
+        }
+        .status-dot.yellow {
+            background: var(--gold);
+        }
+        .status-dot.red {
+            background: var(--red);
+        }
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 17, 23, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        /* Responsive */
+        @media (max-width: 600px) {
+            .app-container {
+                padding: 10px 12px;
+            }
+            .signal-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 18px 16px;
+            }
+            .signal-icon {
+                font-size: 2.2rem;
+            }
+            .signal-info .prob {
+                font-size: 1.5rem;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+            .metric-item {
+                padding: 10px 8px;
+            }
+            .metric-value {
+                font-size: 1.2rem;
+            }
+            .chart-wrapper {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <span style="color:#9a9ca8;">正在获取数据 & 训练模型...</span>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <div class="app-header">
+            <div>
+                <div class="app-title">📈 半导体<span>智选</span> · 涨跌预测</div>
+                <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;">
+                    永赢先锋半导体智选混合发起C
+                </div>
+            </div>
+            <div class="fund-badge">基金代码 <code>025209</code></div>
+        </div>
+
+        <!-- 今日信号 -->
+        <div class="signal-card hold" id="signalCard">
+            <div class="signal-icon" id="signalIcon">⏳</div>
+            <div class="signal-info">
+                <h3 id="signalTitle">加载中...</h3>
+                <div class="prob" id="signalProb">--</div>
+                <div class="sub" id="signalSub"></div>
+            </div>
+        </div>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" style="margin-bottom:8px;">
+            <span class="status-dot green" id="statusDot"></span>
+            <span id="statusText">就绪</span>
+            <span style="margin-left:auto;font-size:0.75rem;" id="dataRange"></span>
+            <button class="btn-refresh" id="btnRefresh" onclick="refreshAll()">🔄 刷新数据</button>
+        </div>
+
+        <!-- 回测指标 -->
+        <div class="card-custom">
+            <h5>📊 回测指标（滚动窗口 · 最近可用数据）</h5>
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="metric-item"><div class="metric-value" id="mAccuracy">--</div><div class="metric-label">准确率</div></div>
+                <div class="metric-item"><div class="metric-value" id="mPrecision">--</div><div class="metric-label">精确率</div></div>
+                <div class="metric-item"><div class="metric-value" id="mRecall">--</div><div class="metric-label">召回率</div></div>
+                <div class="metric-item"><div class="metric-value" id="mReturn">--</div><div class="metric-label">策略累计收益</div></div>
+                <div class="metric-item"><div class="metric-value" id="mAnnual">--</div><div class="metric-label">年化收益</div></div>
+                <div class="metric-item"><div class="metric-value" id="mMDD">--</div><div class="metric-label">最大回撤</div></div>
+                <div class="metric-item"><div class="metric-value" id="mWinRate">--</div><div class="metric-label">胜率</div></div>
+                <div class="metric-item"><div class="metric-value" id="mTrades">--</div><div class="metric-label">交易次数</div></div>
+            </div>
+        </div>
+
+        <!-- 净值曲线图 -->
+        <div class="card-custom">
+            <h5>📉 策略净值 vs 买入持有</h5>
+            <div class="chart-wrapper"><canvas id="chartEquity"></canvas></div>
+        </div>
+
+        <!-- 交易记录 -->
+        <div class="card-custom">
+            <h5>📋 最近交易记录</h5>
+            <div style="overflow-x:auto;">
+                <table class="table-custom" id="tradeTable">
+                    <thead><tr><th>买入日</th><th>卖出日</th><th>持有天数</th><th>买入净值</th><th>卖出净值</th><th>收益</th><th>结果</th></tr></thead>
+                    <tbody id="tradeBody"><tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无交易记录</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 预测概率走势 -->
+        <div class="card-custom">
+            <h5>🔮 近期预测概率 p(up) 走势</h5>
+            <div class="chart-wrapper"><canvas id="chartProb"></canvas></div>
+        </div>
+    </div>
+
+    <script>
+        // ============ 全局状态 ============
+        let chartEquityInstance = null;
+        let chartProbInstance = null;
+
+        // ============ 初始化 ============
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshAll();
+        });
+
+        async function refreshAll() {
+            const overlay = document.getElementById('loadingOverlay');
+            const btn = document.getElementById('btnRefresh');
+            overlay.style.display = 'flex';
+            btn.disabled = true;
+            setStatus('yellow', '正在获取数据...');
+
+            try {
+                const resp = await fetch('/api/all');
+                const data = await resp.json();
+
+                if (data.error) {
+                    setStatus('red', '错误: ' + data.error);
+                    document.getElementById('signalTitle').textContent = '数据获取失败';
+                    document.getElementById('signalProb').textContent = '--';
+                    document.getElementById('signalSub').textContent = data.error;
+                    updateSignalCard('hold');
+                    overlay.style.display = 'none';
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 更新信号
+                updateSignal(data.signal);
+                // 更新回测指标
+                updateMetrics(data.metrics);
+                // 更新图表
+                updateEquityChart(data.equity_curve);
+                updateProbChart(data.prob_history);
+                // 更新交易记录
+                updateTradeTable(data.trades);
+                // 更新数据范围
+                document.getElementById('dataRange').textContent =
+                    `数据: ${data.data_start} ~ ${data.data_end} | 样本数: ${data.n_samples}`;
+                setStatus('green', '就绪 · 最后更新: ' + new Date().toLocaleTimeString());
+
+            } catch (err) {
+                setStatus('red', '请求失败: ' + err.message);
+                document.getElementById('signalTitle').textContent = '连接失败';
+                document.getElementById('signalProb').textContent = '--';
+                document.getElementById('signalSub').textContent = '请检查服务器是否运行';
+                updateSignalCard('hold');
+            }
+            overlay.style.display = 'none';
+            btn.disabled = false;
+        }
+
+        function setStatus(color, text) {
+            const dot = document.getElementById('statusDot');
+            dot.className = 'status-dot ' + color;
+            document.getElementById('statusText').textContent = text;
+        }
+
+        function updateSignal(signal) {
+            const card = document.getElementById('signalCard');
+            const icon = document.getElementById('signalIcon');
+            const title = document.getElementById('signalTitle');
+            const prob = document.getElementById('signalProb');
+            const sub = document.getElementById('signalSub');
+
+            card.className = 'signal-card ' + (signal.action_class || 'hold');
+            icon.textContent = signal.icon || '⏳';
+            title.textContent = signal.title || '等待信号';
+            prob.textContent = signal.probability !== null ?
+                'p(up) = ' + (signal.probability * 100).toFixed(1) + '%' :
+                '--';
+            sub.textContent = signal.subtitle || '';
+
+            if (signal.action_class === 'buy') {
+                prob.style.color = 'var(--green)';
+            } else if (signal.action_class === 'sell') {
+                prob.style.color = 'var(--red)';
+            } else {
+                prob.style.color = 'var(--blue)';
+            }
+        }
+
+        function updateSignalCard(cls) {
+            const card = document.getElementById('signalCard');
+            card.className = 'signal-card ' + cls;
+        }
+
+        function updateMetrics(metrics) {
+            if (!metrics) return;
+            const setVal = (id, val, isPercent = false) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (val === null || val === undefined || isNaN(val)) {
+                    el.textContent = '--';
+                    el.className = 'metric-value';
+                    return;
+                }
+                const formatted = isPercent ? (val * 100).toFixed(2) + '%' :
+                    typeof val === 'number' ? (Math.abs(val) >= 10 ? val.toFixed(1) : val.toFixed(4)) :
+                    val;
+                el.textContent = formatted;
+                if (typeof val === 'number') {
+                    el.className = 'metric-value ' + (val >= 0 ? 'up' : 'down');
+                }
+            };
+            setVal('mAccuracy', metrics.accuracy, true);
+            setVal('mPrecision', metrics.precision, true);
+            setVal('mRecall', metrics.recall, true);
+            setVal('mReturn', metrics.strategy_return, true);
+            setVal('mAnnual', metrics.annual_return, true);
+            setVal('mMDD', metrics.max_drawdown, true);
+            setVal('mWinRate', metrics.win_rate, true);
+            setVal('mTrades', metrics.total_trades, false);
+        }
+
+        function updateTradeTable(trades) {
+            const tbody = document.getElementById('tradeBody');
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML =
+                '<tr><td colspan="7" style="text-align:center;color:var(--text-secondary);">暂无交易记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = trades.slice().reverse().map(t => {
+                const retClass = t.return_pct >= 0 ? 'trade-win' : 'trade-loss';
+                const retSign = t.return_pct >= 0 ? '+' : '';
+                const badgeCls = t.return_pct >= 0 ? 'badge-buy' : 'badge-sell';
+                const resultLabel = t.return_pct >= 0 ? '盈利' : '亏损';
+                return `
+                    <tr>
+                        <td>${t.buy_date}</td>
+                        <td>${t.sell_date}</td>
+                        <td>${t.hold_days}天</td>
+                        <td>${t.buy_nav}</td>
+                        <td>${t.sell_nav}</td>
+                        <td class="${retClass}">${retSign}${(t.return_pct*100).toFixed(2)}%</td>
+                        <td><span class="badge-tag ${badgeCls}">${resultLabel}</span></td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function updateEquityChart(curve) {
+            const ctx = document.getElementById('chartEquity');
+            if (!ctx) return;
+            if (chartEquityInstance) chartEquityInstance.destroy();
+
+            if (!curve || !curve.dates || curve.dates.length === 0) {
+                chartEquityInstance = null;
+                return;
+            }
+
+            chartEquityInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: curve.dates,
+                    datasets: [{
+                        label: '策略净值',
+                        data: curve.strategy_nav,
+                        borderColor: '#00d4aa',
+                        backgroundColor: 'rgba(0,212,170,0.08)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 2,
+                    }, {
+                        label: '买入持有净值',
+                        data: curve.buyhold_nav,
+                        borderColor: '#9a9ca8',
+                        borderDash: [6, 3],
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 1.5,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#9a9ca8', usePointStyle: true, padding: 20,
+                                font: { size: 11 } },
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(4)}`,
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#5a5c68', maxTicksLimit: 10, font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                        },
+                        y: {
+                            ticks: { color: '#5a5c68', callback: (v) => v.toFixed(3),
+                                font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                        },
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                },
+            });
+        }
+
+        function updateProbChart(probHistory) {
+            const ctx = document.getElementById('chartProb');
+            if (!ctx) return;
+            if (chartProbInstance) chartProbInstance.destroy();
+
+            if (!probHistory || !probHistory.dates || probHistory.dates.length === 0) {
+                chartProbInstance = null;
+                return;
+            }
+
+            const probs = probHistory.probabilities;
+            const colors = probs.map(p => p >= 0.6 ? 'rgba(0,212,170,0.7)' : p >= 0.5 ? 'rgba(240,185,11,0.7)' :
+                'rgba(255,71,87,0.5)');
+
+            chartProbInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: probHistory.dates,
+                    datasets: [{
+                        label: 'p(up)',
+                        data: probs,
+                        backgroundColor: colors,
+                        borderColor: colors.map(c => c.replace('0.7', '1').replace('0.5',
+                            '0.8')),
+                        borderWidth: 1,
+                        borderRadius: 3,
+                    }, {
+                        label: '买入阈值 0.6',
+                        data: Array(probs.length).fill(0.6),
+                        borderColor: '#00d4aa',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        pointRadius: 0,
+                        type: 'line',
+                        fill: false,
+                    }, {
+                        label: '卖出阈值 0.5',
+                        data: Array(probs.length).fill(0.5),
+                        borderColor: '#ff4757',
+                        borderWidth: 2,
+                        borderDash: [8, 4],
+                        pointRadius: 0,
+                        type: 'line',
+                        fill: false,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: '#9a9ca8', usePointStyle: true, padding: 16,
+                                font: { size: 10 } },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.datasetIndex === 0) return 'p(up): ' + (ctx.parsed.y *
+                                        100).toFixed(1) + '%';
+                                    return ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2);
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#5a5c68', maxTicksLimit: 12, font: { size: 9 } },
+                            grid: { color: 'rgba(255,255,255,0.02)' },
+                        },
+                        y: {
+                            min: 0,
+                            max: 1,
+                            ticks: { color: '#5a5c68', callback: (v) => (v * 100).toFixed(0) + '%',
+                                font: { size: 10 } },
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                        },
+                    },
+                    interaction: { mode: 'nearest', axis: 'x', intersect: false },
+                },
+            });
+        }
+    </script>
+</body>
+</html>

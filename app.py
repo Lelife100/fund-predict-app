@@ -17,11 +17,12 @@ HOLD_DAYS = 5
 def fetch_nav_data():
     if not os.path.exists("data.csv"):
         return None
-    df = pd.read_csv("data.csv", header=None, encoding="utf-8")
+    # 关键修改：用空白分隔符（兼容空格、制表符）
+    df = pd.read_csv("data.csv", header=None, encoding="utf-8", sep=r'\s+')
+    # 可能有些行末尾有空白导致读取了空列，只取前三列
     df = df.iloc[:, :3]
     df.columns = ["date", "nav", "acc_nav"]
     for col in ["nav", "acc_nav"]:
-        # 移除千分位逗号和百分号，转为数值
         df[col] = df[col].astype(str).str.replace(",", "", regex=True).str.replace("%", "", regex=True)
         df[col] = pd.to_numeric(df[col], errors="coerce")
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -123,6 +124,5 @@ def index():
     return send_from_directory('.', 'index.html')
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT",5000))
     app.run(host="0.0.0.0", port=port)
